@@ -1,0 +1,8 @@
+rules:
+  - id: python-flask-missing-ssl
+    patterns:
+      - pattern-not: app.run(..., ssl_context=...)
+      - pattern: app.run(...)
+    message: "CWE-319: Flask app is running without SSL context!"
+    languages: [python]
+    severity: ERROR
