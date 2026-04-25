@@ -1,0 +1,22 @@
+name: SAST Scan and Security Gate
+on: [push]
+
+jobs:
+  security-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run Semgrep
+        run: |
+          docker run --rm -v $(pwd):/src returntocorp/semgrep \
+          semgrep --config .semgrep.yml --json --output semgrep-report.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Check Security Gate
+        run: python security_gate.py
