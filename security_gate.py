@@ -3,7 +3,7 @@ import os
 import sys
 
 def check_gate():
-    zap_report = 'zap_report.json'
+    zap_report = 'report_json.json'
     threshold = 'high'
     
     if not os.path.exists(zap_report):
