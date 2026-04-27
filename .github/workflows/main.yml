@@ -1,4 +1,4 @@
-name: SAST, SCA and DAST Scan
+name: Security Pipeline (SCA + DAST)
 
 on: [push]
 
@@ -9,45 +9,40 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # --- [СТАДИИ ИЗ ЛР 11 и 12] ---
-      - name: Run Semgrep (SAST)
-        run: |
-          docker run --rm -v $(pwd):/src returntocorp/semgrep \
-          semgrep --config .semgrep.yml --json --output semgrep-report.json . || true
-
-      - name: Run Trivy (SCA)
+      # --- СТАДИЯ SCA (ЛР 12) ---
+      # Она должна быть зеленой, поэтому в requirements.txt должны быть новые версии
+      - name: Run Trivy SCA
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           format: 'json'
           output: 'trivy_report.json'
 
-      # --- [НОВАЯ СТАДИЯ ДЛЯ ЛР 13: DAST] ---
-
-      # 1. Сначала нужно запустить само приложение, чтобы сканеру было что "щупать"
-      - name: Build and Run Fitness Tracker
+      # --- СТАДИЯ DAST (ЛР 13) ---
+      
+      # 1. Собираем и запускаем твой Fitness Tracker
+      - name: Build and Run App
         run: |
-          docker build -t fitness-tracker .
-          docker run -d -p 5000:5000 --name app fitness-tracker
-          # Даем приложению 10 секунд, чтобы оно успело прогрузиться
-          sleep 10 
+          docker build -t fitness-app .
+          docker run -d -p 5000:5000 --name tracker fitness-app
+          sleep 15 # Даем Flask время полностью подняться
 
-      # 2. Запускаем OWASP ZAP (DAST-сканер)
+      # 2. ПОДГОТОВКА: Создаем файл отчета заранее и даем права Docker-у на запись в него
+      - name: Prepare report file
+        run: |
+          touch report_json.json
+          chmod 777 report_json.json
+
+      # 3. Запуск сканера OWASP ZAP
       - name: Run OWASP ZAP
         uses: zaproxy/action-baseline@v0.12.0
         with:
           target: 'http://localhost:5000'
+          # Явно просим ZAP записать результат в наш подготовленный файл
+          cmd_options: '-J report_json.json'
           fail_action: false
 
-      # ДОБАВЬ ЭТОТ ШАГ, чтобы отчет стал доступен для Python
-      - name: Fix permissions for report
-        run: sudo chmod 644 report_json.json
-        if: always()
-
-      - name: Check Security Gate
-        run: python security_gate.py
-
-      # --- [ФИНАЛЬНЫЕ ШАГИ] ---
+      # 4. Проверка Security Gate через Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -56,12 +51,12 @@ jobs:
       - name: Check Security Gate
         run: python security_gate.py
 
+      # 5. Сохранение всех отчетов (чтобы прикрепить к лабе)
       - name: Upload All Reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: full-security-reports
+          name: security-reports
           path: |
-            semgrep-report.json
             trivy_report.json
-            zap_report.html
+            report_json.json
