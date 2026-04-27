@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Стадия SAST (из ЛР11)
       - name: Run Semgrep
@@ -27,7 +27,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
@@ -37,7 +37,7 @@ jobs:
 
       # Чтобы отчеты можно было скачать и посмотреть
       - name: Upload Reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always() # Загружать даже если были ошибки
         with:
           name: security-reports
