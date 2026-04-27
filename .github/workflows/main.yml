@@ -9,35 +9,44 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Стадия SAST (из ЛР11)
+      # 1. Стадия SAST (Анализ кода из ЛР11)
       - name: Run Semgrep
         run: |
           docker run --rm -v $(pwd):/src returntocorp/semgrep \
           semgrep --config .semgrep.yml --json --output semgrep-report.json . || true
-        # Мы добавили "|| true" в конце команды выше, чтобы она не прерывала билд
 
-      # Стадия SCA (новая для ЛР12)
+      # 2. ОЧИСТКА (Гарантируем, что старые отчеты не подмешаются)
+      - name: Clean old data
+        run: |
+          rm -f trivy_report.json
+          docker system prune -f
+
+      # 3. Стадия SCA (Проверка зависимостей для ЛР12)
+      # Добавлен флаг --clear-cache, чтобы убить "память" сканера о старом requirements.txt
       - name: Run Trivy SCA
         run: |
           docker run --rm -v $(pwd):/src aquasec/trivy:latest fs \
+          --clear-cache \
           --format json \
           --output /src/trivy_report.json \
           /src
         continue-on-error: true
 
+      # 4. Настройка окружения для скрипта проверки
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      # Теперь этот шаг запустится в любом случае и сам решит, «валить» билд или нет
+      # 5. Сравнение результатов с политикой безопасности
+      # Если в requirements.txt новые версии, этот шаг выдаст PASSED
       - name: Check Security Gate
         run: python security_gate.py
 
-      # Чтобы отчеты можно было скачать и посмотреть
+      # 6. Сохранение артефактов (отчетов) для отчета по лабе
       - name: Upload Reports
         uses: actions/upload-artifact@v4
-        if: always() # Загружать даже если были ошибки
+        if: always() 
         with:
           name: security-reports
           path: |
