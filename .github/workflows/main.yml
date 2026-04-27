@@ -21,16 +21,18 @@ jobs:
           rm -f trivy_report.json
           docker system prune -f
 
-      # 3. Стадия SCA (Проверка зависимостей для ЛР12)
-      # Добавлен флаг --clear-cache, чтобы убить "память" сканера о старом requirements.txt
+# Стадия SCA (Trivy) через официальный экшен — это надежнее
       - name: Run Trivy SCA
-        run: |
-          docker run --rm -v $(pwd):/src aquasec/trivy:latest fs \
-          --clear-cache \
-          --format json \
-          --output /src/trivy_report.json \
-          /src
-        continue-on-error: true
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          format: 'json'
+          output: 'trivy_report.json'
+          severity: 'CRITICAL,HIGH'
+
+      # Проверка, что файл создался (для отладки)
+      - name: Check if report exists
+        run: ls -l trivy_report.json
 
       # 4. Настройка окружения для скрипта проверки
       - name: Set up Python
