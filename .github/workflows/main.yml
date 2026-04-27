@@ -14,22 +14,33 @@ jobs:
         run: |
           docker run --rm -v $(pwd):/src returntocorp/semgrep \
           semgrep --config .semgrep.yml --json --output semgrep-report.json . || true
+        # Мы добавили "|| true" в конце команды выше, чтобы она не прерывала билд
 
       # Стадия SCA (новая для ЛР12)
       - name: Run Trivy SCA
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true  # <--- ДОБАВЬТЕ ЭТО
         with:
           scan-type: 'fs'
           format: 'json'
           output: 'trivy_report.json'
           severity: 'CRITICAL,HIGH'
 
-      # Подготовка Python для Security Gate
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
-      # Проверка Security Gate (общая для обеих лаб)
+      # Теперь этот шаг запустится в любом случае и сам решит, «валить» билд или нет
       - name: Check Security Gate
         run: python security_gate.py
+
+      # Чтобы отчеты можно было скачать и посмотреть
+      - name: Upload Reports
+        uses: actions/upload-artifact@v3
+        if: always() # Загружать даже если были ошибки
+        with:
+          name: security-reports
+          path: |
+            semgrep-report.json
+            trivy_report.json
