@@ -19,11 +19,11 @@ jobs:
       # Стадия SCA (новая для ЛР12)
       - name: Run Trivy SCA
         uses: aquasecurity/trivy-action@master
-        continue-on-error: true  # <--- ДОБАВЬТЕ ЭТО
+        continue-on-error: true
         with:
           scan-type: 'fs'
           format: 'json'
-          output: 'trivy_report.json'
+          output: 'trivy_report.json' # Этот файл будет искать скрипт
           severity: 'CRITICAL,HIGH'
 
       - name: Set up Python
