@@ -33,15 +33,13 @@ jobs:
           sleep 10 
 
       # 2. Запускаем OWASP ZAP (DAST-сканер)
-      - name: Run OWASP ZAP (DAST)
+      - name: Run OWASP ZAP
         uses: zaproxy/action-baseline@v0.12.0
         with:
-          # Указываем адрес запущенного в Docker приложения
           target: 'http://localhost:5000'
-          # Имя файла для отчета, который мы потом скачаем
-          artifact_name: 'zap_report.html'
-          # Не заваливать билд сразу, чтобы мы могли обработать ошибки сами
-          fail_action: false 
+          # Обязательно указываем имя файла как в скрипте!
+          cmd_options: '-J zap_report.json' 
+          fail_action: false
 
       # --- [ФИНАЛЬНЫЕ ШАГИ] ---
       - name: Set up Python
