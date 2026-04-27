@@ -32,15 +32,15 @@ jobs:
           mkdir -p zap_out
           chmod 777 zap_out
 
-      - name: Run OWASP ZAP
+      - name: Run OWASP ZAP (Active Scan)
         run: |
           docker run --rm -u root \
           -v $(pwd):/zap/wrk/:rw \
           --network host \
-          ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+          ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py \
           -t http://localhost:5000 \
-          -J report_json.json || true 
-          # || true здесь нужен, так как сам ZAP всегда возвращает ошибку при любом WARN
+          -J report_json.json
+        continue-on-error: true
 
       - name: Check Security Gate
         run: python security_gate.py
