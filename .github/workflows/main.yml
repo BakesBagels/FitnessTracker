@@ -37,9 +37,15 @@ jobs:
         uses: zaproxy/action-baseline@v0.12.0
         with:
           target: 'http://localhost:5000'
-          # Обязательно указываем имя файла как в скрипте!
-          cmd_options: '-J zap_report.json' 
           fail_action: false
+
+      # ДОБАВЬ ЭТОТ ШАГ, чтобы отчет стал доступен для Python
+      - name: Fix permissions for report
+        run: sudo chmod 644 report_json.json
+        if: always()
+
+      - name: Check Security Gate
+        run: python security_gate.py
 
       # --- [ФИНАЛЬНЫЕ ШАГИ] ---
       - name: Set up Python
