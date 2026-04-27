@@ -34,11 +34,12 @@ jobs:
 
       - name: Run OWASP ZAP
         run: |
-          docker run --rm -v $(pwd):/zap/wrk/:rw --network=host \
+          # Добавляем -u root, чтобы не было Permission denied
+          docker run --rm -u root -v $(pwd):/zap/wrk/:rw --network=host \
           ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
           -t http://localhost:5000 \
           -J report_json.json
-        continue-on-error: true
+        continue-on-error: true # Чтобы пайплайн не падал до работы Security Gate
 
       - name: Check Security Gate
         run: |
