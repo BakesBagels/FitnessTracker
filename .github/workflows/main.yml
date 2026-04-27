@@ -1,4 +1,4 @@
-name: SAST and SCA Scan
+name: SAST, SCA and DAST Scan
 
 on: [push]
 
@@ -9,48 +9,55 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 1. Стадия SAST (Анализ кода из ЛР11)
-      - name: Run Semgrep
+      # --- [СТАДИИ ИЗ ЛР 11 и 12] ---
+      - name: Run Semgrep (SAST)
         run: |
           docker run --rm -v $(pwd):/src returntocorp/semgrep \
           semgrep --config .semgrep.yml --json --output semgrep-report.json . || true
 
-      # 2. ОЧИСТКА (Гарантируем, что старые отчеты не подмешаются)
-      - name: Clean old data
-        run: |
-          rm -f trivy_report.json
-          docker system prune -f
-
-# Стадия SCA (Trivy) через официальный экшен — это надежнее
-      - name: Run Trivy SCA
+      - name: Run Trivy (SCA)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           format: 'json'
           output: 'trivy_report.json'
-          severity: 'CRITICAL,HIGH'
 
-      # Проверка, что файл создался (для отладки)
-      - name: Check if report exists
-        run: ls -l trivy_report.json
+      # --- [НОВАЯ СТАДИЯ ДЛЯ ЛР 13: DAST] ---
 
-      # 4. Настройка окружения для скрипта проверки
+      # 1. Сначала нужно запустить само приложение, чтобы сканеру было что "щупать"
+      - name: Build and Run Fitness Tracker
+        run: |
+          docker build -t fitness-tracker .
+          docker run -d -p 5000:5000 --name app fitness-tracker
+          # Даем приложению 10 секунд, чтобы оно успело прогрузиться
+          sleep 10 
+
+      # 2. Запускаем OWASP ZAP (DAST-сканер)
+      - name: Run OWASP ZAP (DAST)
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          # Указываем адрес запущенного в Docker приложения
+          target: 'http://localhost:5000'
+          # Имя файла для отчета, который мы потом скачаем
+          artifact_name: 'zap_report.html'
+          # Не заваливать билд сразу, чтобы мы могли обработать ошибки сами
+          fail_action: false 
+
+      # --- [ФИНАЛЬНЫЕ ШАГИ] ---
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      # 5. Сравнение результатов с политикой безопасности
-      # Если в requirements.txt новые версии, этот шаг выдаст PASSED
       - name: Check Security Gate
         run: python security_gate.py
 
-      # 6. Сохранение артефактов (отчетов) для отчета по лабе
-      - name: Upload Reports
+      - name: Upload All Reports
         uses: actions/upload-artifact@v4
-        if: always() 
+        if: always()
         with:
-          name: security-reports
+          name: full-security-reports
           path: |
             semgrep-report.json
             trivy_report.json
+            zap_report.html
