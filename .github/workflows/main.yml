@@ -1,4 +1,5 @@
-name: SAST Scan and Security Gate
+name: SAST and SCA Scan
+
 on: [push]
 
 jobs:
@@ -8,15 +9,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Стадия SAST (из ЛР11)
       - name: Run Semgrep
         run: |
           docker run --rm -v $(pwd):/src returntocorp/semgrep \
-          semgrep --config .semgrep.yml --json --output semgrep-report.json
+          semgrep --config .semgrep.yml --json --output semgrep-report.json . || true
 
+      # Стадия SCA (новая для ЛР12)
+      - name: Run Trivy SCA
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          format: 'json'
+          output: 'trivy_report.json'
+          severity: 'CRITICAL,HIGH'
+
+      # Подготовка Python для Security Gate
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.x'
 
+      # Проверка Security Gate (общая для обеих лаб)
       - name: Check Security Gate
         run: python security_gate.py
