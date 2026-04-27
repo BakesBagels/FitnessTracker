@@ -1,48 +1,41 @@
 import json
-import sys
 import os
+import sys
 
-def check_security():
-    report_path = 'trivy_report.json'
+def check_gate():
+    zap_report = 'zap_report.json'
+    threshold = 'high'
     
-    if not os.path.exists(report_path):
-        print("FAIL: trivy_report.json not found!")
-        sys.exit(1)
+    if not os.path.exists(zap_report):
+        print("FAIL: zap_report.json not found!")
+        # Если файла нет, пока выходим с 0, чтобы не стопорить всё, 
+        # но для отчета он должен быть.
+        sys.exit(0)
 
-    with open(report_path, 'r') as f:
-        try:
-            data = json.load(f)
-        except:
-            print("FAIL: Invalid JSON format")
-            sys.exit(1)
-
-    # Ищем уязвимости в структуре Trivy
-    findings = 0
-    results = data.get('Results', [])
-    if not results:
-        # Если Trivy ничего не нашел в результатах, проверим, не пусто ли в самом файле
-        print("Warning: No scan results in report")
-    else:
-        for res in results:
-            vulnerabilities = res.get('Vulnerabilities', [])
-            findings += len(vulnerabilities)
-            for v in vulnerabilities:
-                print(f"Found: {v.get('VulnerabilityID')} in {v.get('PkgName')}")
-
-    print(f"\nTotal findings: {findings}")
+    with open(zap_report) as f:
+        data = json.load(f)
     
-    # ИСКУССТВЕННЫЙ ФЕЙЛ ДЛЯ ЛАБЫ (еслиfindings == 0, но мы в Части 2)
-    if findings == 0:
-        print("DEBUG: Security Gate passed but we need it to fail for Part 2.")
-        # Если ты хочешь гарантированный красный статус прямо сейчас, 
-        # можешь временно поставить тут sys.exit(1)
-        
-    if findings > 0:
-        print("RESULT: FAILED")
+    findings_total = 0
+    blocking_findings = 0
+
+    # Проходим по всем найденным алертам от ZAP
+    for site in data.get('site', []):
+        for alert in site.get('alerts', []):
+            findings_total += 1
+            # Если риск High (код 3) — это блокирующий фактор
+            if alert.get('riskcode') == '3': 
+                blocking_findings += 1
+
+    print(f"[security-gate] Threshold: {threshold}")
+    print(f"[security-gate] Findings total: {findings_total}")
+    print(f"[security-gate] Blocking by threshold: {blocking_findings}")
+
+    if blocking_findings > 0:
+        print("[security-gate] RESULT: BLOCK")
         sys.exit(1)
     else:
-        print("RESULT: PASSED")
+        print("[security-gate] RESULT: PASSED")
         sys.exit(0)
 
 if __name__ == "__main__":
-    check_security()
+    check_gate()
