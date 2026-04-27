@@ -3,38 +3,33 @@ import os
 import sys
 
 def check_gate():
-    zap_report = 'report_json.json'
-    threshold = 'high'
+    report_file = 'report_json.json'
     
-    if not os.path.exists(zap_report):
-        print("FAIL: zap_report.json not found!")
-        # Если файла нет, пока выходим с 0, чтобы не стопорить всё, 
-        # но для отчета он должен быть.
-        sys.exit(0)
+    if not os.path.exists(report_file) or os.path.getsize(report_file) == 0:
+        print("CRITICAL: DAST report is missing or empty!")
+        sys.exit(1)
 
-    with open(zap_report) as f:
+    with open(report_file) as f:
         data = json.load(f)
     
-    findings_total = 0
-    blocking_findings = 0
-
-    # Проходим по всем найденным алертам от ZAP
+    high_alerts = 0
+    total_alerts = 0
+    
     for site in data.get('site', []):
         for alert in site.get('alerts', []):
-            findings_total += 1
-            # Если риск High (код 3) — это блокирующий фактор
-            if alert.get('riskcode') == '3': 
-                blocking_findings += 1
+            total_alerts += 1
+            if alert.get('riskcode') == '3': # High Risk
+                high_alerts += 1
 
-    print(f"[security-gate] Threshold: {threshold}")
-    print(f"[security-gate] Findings total: {findings_total}")
-    print(f"[security-gate] Blocking by threshold: {blocking_findings}")
+    print(f"--- DAST Security Gate Results ---")
+    print(f"Total vulnerabilities found: {total_alerts}")
+    print(f"High-risk vulnerabilities: {high_alerts}")
 
-    if blocking_findings > 0:
-        print("[security-gate] RESULT: BLOCK")
+    if high_alerts > 0:
+        print("RESULT: FAILED (High risk alerts found)")
         sys.exit(1)
     else:
-        print("[security-gate] RESULT: PASSED")
+        print("RESULT: PASSED (No high risk alerts)")
         sys.exit(0)
 
 if __name__ == "__main__":
