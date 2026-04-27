@@ -36,21 +36,15 @@ jobs:
         run: |
           docker run --rm -u root \
           -v $(pwd):/zap/wrk/:rw \
-          --network=host \
-          --add-host=host.docker.internal:host-gateway \
+          --network host \
           ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
-          -t http://host.docker.internal:5000 \
-          -J report_json.json
-        continue-on-error: true
+          -t http://localhost:5000 \
+          -J report_json.json || true 
+          # || true здесь нужен, так как сам ZAP всегда возвращает ошибку при любом WARN
 
       - name: Check Security Gate
-        run: |
-          # Если файл пустой или отсутствует, создадим минимально корректный JSON, 
-          # чтобы скрипт не падал с Traceback
-          if [ ! -s report_json.json ]; then
-            echo '{"site": []}' > report_json.json
-          fi
-          python security_gate.py
+        run: python security_gate.py
+        # Теперь, если наш скрипт скажет "BLOCK", пайплайн упадет по-настоящему.
 
       - name: Upload Reports
         uses: actions/upload-artifact@v4
