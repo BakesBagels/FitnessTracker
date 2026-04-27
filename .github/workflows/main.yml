@@ -18,13 +18,12 @@ jobs:
 
       # Стадия SCA (новая для ЛР12)
       - name: Run Trivy SCA
-        uses: aquasecurity/trivy-action@master
+        run: |
+          docker run --rm -v $(pwd):/src aquasec/trivy:latest fs \
+          --format json \
+          --output /src/trivy_report.json \
+          /src
         continue-on-error: true
-        with:
-          scan-type: 'fs'
-          format: 'json'
-          output: 'trivy_report.json' # Этот файл будет искать скрипт
-          severity: 'CRITICAL,HIGH'
 
       - name: Set up Python
         uses: actions/setup-python@v5
